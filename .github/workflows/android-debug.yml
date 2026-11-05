@@ -1,0 +1,38 @@
+name: ADS Jarvis Standalone Android Debug
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'app/**'
+      - '*.gradle'
+      - 'gradle.properties'
+      - '.github/workflows/android-debug.yml'
+jobs:
+  android-build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Install Android SDK 35
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Compile and test independent command engine
+        run: |
+          mkdir -p /tmp/ads-jarvis-tests
+          javac -d /tmp/ads-jarvis-tests app/src/main/java/com/adsjarvis/standalone/CommandEngine.java tests/CommandEngineSmokeTest.java
+          java -cp /tmp/ads-jarvis-tests com.adsjarvis.standalone.CommandEngineSmokeTest
+      - name: Build isolated debug APK
+        run: gradle --no-daemon :app:assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ads-jarvis-standalone-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
