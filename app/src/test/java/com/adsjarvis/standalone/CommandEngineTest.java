@@ -21,6 +21,9 @@ public class CommandEngineTest {
         assertEquals(Action.NONE, r("open settings and delete files").action);
         assertFalse(r("open settings and delete files").askAi);
         assertTrue(r("vanakkam").response.contains("Vanakkam"));
+        assertTrue(CommandEngine.run("What do you remember?", "blue").response.contains("I remember: blue"));
+        assertTrue(CommandEngine.run("jarvis, show my memory", "blue").response.contains("I remember: blue"));
+        assertEquals(Action.DATE, r("date enna").action);
     }
 
     @Test public void languageDetection() {

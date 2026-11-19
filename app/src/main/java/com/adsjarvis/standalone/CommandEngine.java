@@ -101,7 +101,8 @@ public final class CommandEngine {
                 return new Result(Action.NONE, "Memory must be between 1 and 250 characters.", "");
             return new Result(Action.SAVE_MEMORY, "Saved on this device: " + memo, memo);
         }
-        if (q.equals("what do you remember") || q.equals("show memory")) {
+        if (q.equals("what do you remember") || q.equals("show memory")
+                || q.matches("^(jarvis,? )?(what do you remember|what did i ask you to remember|show (my )?memory)\\W*$")) {
             String memo = savedMemory == null ? "" : savedMemory;
             return new Result(Action.NONE, memo.isEmpty() ? "No memory saved yet." : "I remember: " + memo, "");
         }

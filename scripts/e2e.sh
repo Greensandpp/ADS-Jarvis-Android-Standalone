@@ -12,6 +12,11 @@ dump() { for i in 1 2 3 4; do adb shell uiautomator dump /sdcard/ui.xml >/dev/nu
 has() { dump && python3 "$here/ui.py" has "$OUT/ui.xml" "$1"; }
 tap_ui() { dump || return 1; local xy; xy=$(python3 "$here/ui.py" center "$OUT/ui.xml" "$1") || return 1; adb shell input tap $xy; }
 shot() { adb exec-out screencap -p > "$OUT/$1.png"; }
+expect() { # expect <command> <reply substring> <label>: send, check, retry once
+  say "$1"; if has "$2"; then ok "$3"; return; fi
+  say "$1"; if has "$2"; then ok "$3 (after retry)"; return; fi
+  bad "$3"; python3 "$here/ui.py" texts "$OUT/ui.xml" | tail -6 | sed 's/^/      seen: /' | tee -a "$OUT/results.txt"
+}
 say() { # type a command into the dock and send it
   tap_ui "message input"; sleep .5
   adb shell input text "$(echo "$1" | sed 's/ /%s/g')"; sleep .5
@@ -34,11 +39,12 @@ done
 dump && python3 "$here/ui.py" texts "$OUT/ui.xml" > "$OUT/home-texts.txt"
 grep -q "AI NOT CONNECTED" "$OUT/home-texts.txt" && ok "status honestly shows AI NOT CONNECTED" || bad "AI status not shown"
 
-say "battery"; has "Battery is at" && ok "local command: battery" || bad "battery reply"
-say "what time is it"; has "It's" && ok "local command: time" || bad "time reply"
-say "remember blue umbrella"; has "Saved on this device: blue umbrella" && ok "memory save (v0.4 feature)" || bad "memory save"
-say "what do you remember"; has "I remember: blue umbrella" && ok "memory recall (v0.4 feature)" || bad "memory recall"
-say "tell me a joke"; has "AI provider is not connected yet" && ok "graceful AI-not-configured reply" || bad "AI-not-configured reply"
+expect "battery" "Battery is at" "local command: battery"
+expect "what time is it" "It's" "local command: time"
+expect "remember blue umbrella" "Saved on this device: blue umbrella" "memory save (v0.4 feature)"
+expect "what do you remember" "I remember: blue umbrella" "memory recall (v0.4 feature)"
+expect "time enna" "It's" "Tanglish command: time enna"
+expect "tell me a joke" "AI provider is not connected yet" "graceful AI-not-configured reply"
 shot 02-chat
 
 # Open an app through a public intent and come back.
@@ -64,7 +70,7 @@ adb shell am force-stop $PKG; sleep 1
 adb shell monkey -p $PKG -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1; sleep 6
 dump && python3 "$here/ui.py" texts "$OUT/ui.xml" > "$OUT/after-restart.txt"
 grep -q "^AIRA" "$OUT/after-restart.txt" && ok "style persists across restart" || bad "style persistence"
-grep -q "I remember: blue umbrella" "$OUT/after-restart.txt" && ok "conversation history persists across restart" || bad "history persistence"
+grep -q "Opening clock." "$OUT/after-restart.txt" && ok "conversation history persists across restart" || bad "history persistence"
 shot 05-aira-after-restart
 # Cycle remaining styles for screenshots.
 for s in "Agent Office" "APEX" "MIRA" "JARVIS ARC reactor"; do
@@ -89,8 +95,7 @@ grep -q "VOICE READY" "$OUT/after-restart.txt" && ok "TTS engine initialised (VO
 
 # Offline: local commands must keep working with networking disabled.
 adb shell svc wifi disable; adb shell svc data disable; sleep 3
-say "what's the date" 3
-has "Today is" && ok "local commands work offline" || bad "offline local command"
+expect "date enna" "Today is" "local commands work offline (Tanglish date)"
 shot 09-offline
 adb shell svc wifi enable; adb shell svc data enable
 

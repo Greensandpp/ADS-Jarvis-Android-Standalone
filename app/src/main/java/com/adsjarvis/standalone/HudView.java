@@ -264,7 +264,7 @@ public final class HudView extends View {
             rect.set(cx - rr, cy - rr, cx + rr, cy + rr);
             float dir = layer % 2 == 0 ? 1 : -1;
             int segs = 18 + layer * 6;
-            stroke(layer % 2 == 0 ? p[1] : p[0], .45f + .08f * (layer % 3), (layer == 3 ? 2.4f : 1.2f) * d);
+            stroke(layer % 2 == 0 ? p[1] : p[0], .75f + .08f * (layer % 3), (layer == 3 ? 3.2f : 1.8f) * d);
             for (int s = 0; s < segs; s++)
                 if ((s * 7 + layer) % 5 != 0) c.drawArc(rect, t * 20 * dir * (.5f + layer * .08f) + s * 360f / segs, 360f / segs * .4f, false, line);
         }
@@ -273,7 +273,22 @@ public final class HudView extends View {
         rect.set(cx - R * 1.2f, cy - R * 1.2f, cx + R * 1.2f, cy + R * 1.2f);
         stroke(p[2], .9f, 2f * d);
         c.drawArc(rect, sweep, 26, false, line);
-        glow(c, cx, cy, R * .55f, p[1], .7f);
+        // Hexagonal core plate and bright gold/cyan bloom.
+        path.reset();
+        for (int k = 0; k <= 6; k++) {
+            double a = Math.PI / 3 * k + t * .4;
+            float x = cx + (float) Math.cos(a) * R * .3f, y = cy + (float) Math.sin(a) * R * .3f;
+            if (k == 0) path.moveTo(x, y); else path.lineTo(x, y);
+        }
+        stroke(p[1], 1f, 2.6f * d);
+        c.drawPath(path, line);
+        for (int k = 0; k < 24; k++) {
+            double a = Math.PI * 2 * k / 24 - t * .9;
+            float rr = R * (1.0f + .06f * (k % 3));
+            dot(c, cx + (float) Math.cos(a) * rr, cy + (float) Math.sin(a) * rr, (1.6f + (k % 3)) * d, k % 2 == 0 ? p[1] : p[0], 1f);
+        }
+        glow(c, cx, cy, R * .9f, p[0], .45f);
+        glow(c, cx, cy, R * .55f, p[1], .9f);
         glow(c, cx, cy, R * .22f, Color.WHITE, 1f);
     }
 
