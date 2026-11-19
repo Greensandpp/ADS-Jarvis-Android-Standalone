@@ -18,10 +18,12 @@ import javax.crypto.spec.GCMParameterSpec;
  */
 final class KeyVault {
     private static final String ALIAS = "jarvis_ai_key_v1";
-    private static final String PREF = "ai_key_enc";
+    private final String PREF;
     private final SharedPreferences prefs;
 
-    KeyVault(SharedPreferences prefs) { this.prefs = prefs; }
+    KeyVault(SharedPreferences prefs) { this(prefs, "ai_key_enc"); }
+    /** Same Keystore key, different ciphertext slot (e.g. PB7 token). */
+    KeyVault(SharedPreferences prefs, String slot) { this.prefs = prefs; this.PREF = slot; }
 
     private SecretKey key() throws Exception {
         KeyStore ks = KeyStore.getInstance("AndroidKeyStore");

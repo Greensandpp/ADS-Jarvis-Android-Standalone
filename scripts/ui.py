@@ -13,13 +13,13 @@ except Exception:
 nodes = list(root.iter("node"))
 if cmd == "texts":
     for n in nodes:
-        t = (n.get("text") or "") or (n.get("content-desc") or "")
+        t = (n.get("text") or "") or (n.get("content-desc") or "") or (n.get("hint") or "")
         if t: print(t)
     sys.exit(0)
 needle = sys.argv[3]
 for n in nodes:
-    t, d = n.get("text") or "", n.get("content-desc") or ""
-    hit = (t == needle or d == needle) if cmd == "center" else (needle in t or needle in d)
+    t, d, h = n.get("text") or "", n.get("content-desc") or "", n.get("hint") or ""
+    hit = (needle in (t, d, h)) if cmd == "center" else (needle in t or needle in d or needle in h)
     if hit:
         if cmd == "center":
             x1, y1, x2, y2 = map(int, re.findall(r"\d+", n.get("bounds")))

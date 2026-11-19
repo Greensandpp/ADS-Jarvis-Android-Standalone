@@ -52,24 +52,25 @@ jobs:
           BT="$ANDROID_HOME/build-tools/35.0.0"
           APK=app/build/outputs/apk/debug/app-debug.apk
           mkdir -p out
-          cp "$APK" out/GreenSoil-JARVIS-1.0.0-debug.apk
-          A=out/GreenSoil-JARVIS-1.0.0-debug.apk
+          cp "$APK" out/GreenSoil-JARVIS-2.0.0-debug.apk
+          A=out/GreenSoil-JARVIS-2.0.0-debug.apk
           echo "== size"; stat -c '%s bytes' "$A"
           echo "== sha256"; sha256sum "$A" | tee out/SHA256SUMS.txt
           echo "== badging"; "$BT/aapt" dump badging "$A" | grep -E "^package:|sdkVersion|targetSdkVersion|application-label:|launchable-activity|uses-permission" | tee out/badging.txt
           grep -q "package: name='com.adsjarvis.standalone.jarvis'" out/badging.txt
-          grep -q "versionName='1.0.0-debug'" out/badging.txt
+          grep -q "versionName='2.0.0-debug'" out/badging.txt
           echo "== signature"; "$BT/apksigner" verify --verbose --print-certs "$A" | grep -E "Verifies|Verified using v2|Signer #1 certificate (DN|SHA-256)" | tee out/signing.txt
           echo "== zip contents"; unzip -l "$A" | tee out/contents.txt
-          grep -q "res/mipmap-anydpi-v26/ic_launcher.xml\|res/.*\.xml" out/contents.txt
+          grep -q "res/mipmap-anydpi-v26/ic_launcher.xml" out/contents.txt
+          for f in common.glsl arc.frag aira.frag mira.frag apex.frag office.frag; do grep -q "assets/shaders/$f" out/contents.txt || { echo "::error::missing shader $f"; exit 1; }; done
           echo "== classes in dex"; for d in $(unzip -Z1 "$A" | grep '\.dex$'); do unzip -p "$A" "$d" > /tmp/$d; "$BT/dexdump" /tmp/$d | grep "Class descriptor" | grep adsjarvis; done | tee out/classes.txt
-          for c in MainActivity HudView CommandEngine AiClient KeyVault Speaker DeviceActions; do grep -q "standalone/$c;" out/classes.txt || { echo "::error::missing class $c"; exit 1; }; done
+          for c in MainActivity SettingsActivity Jarvis VisualEngine AndroidTools JarvisDb VoiceInput core/Brain core/GeminiClient core/MemoryEngine core/RiskEngine core/JournalAnalyzer; do grep -q "standalone/$c;" out/classes.txt || { echo "::error::missing class $c"; exit 1; }; done
           echo "== merged manifest permissions"; "$BT/aapt" dump permissions "$A" | tee out/permissions.txt
           if grep -E "QUERY_ALL_PACKAGES|SYSTEM_ALERT_WINDOW|READ_CONTACTS|READ_SMS|SEND_SMS|CALL_PHONE|BIND_ACCESSIBILITY|REQUEST_INSTALL|REQUEST_DELETE" out/permissions.txt; then echo "::error::unexpected sensitive permission"; exit 1; fi
           echo "commit=$GITHUB_SHA run=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > out/PROVENANCE.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: GreenSoil-JARVIS-1.0.0-debug-apk
+          name: GreenSoil-JARVIS-2.0.0-debug-apk
           path: out/
           if-no-files-found: error
           retention-days: 14
@@ -78,18 +79,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag='v1.0.0-jarvis-debug'
-          apk='out/GreenSoil-JARVIS-1.0.0-debug.apk'
-          notes="DEBUG test build from ${GITHUB_SHA}. Package com.adsjarvis.standalone.jarvis installs beside v0.4. AI requires your own key (Settings via long-press). SHA256: $(cut -d' ' -f1 out/SHA256SUMS.txt)"
+          tag='v2.0.0-jarvis-debug'
+          apk='out/GreenSoil-JARVIS-2.0.0-debug.apk'
+          notes="DEBUG test build from ${GITHUB_SHA}. Package com.adsjarvis.standalone.jarvis (updates 1.0.0 test build only if signed with the same key; else uninstall the test build first). AI requires your own Gemini key: gear icon -> AI Brain. SHA256: $(cut -d' ' -f1 out/SHA256SUMS.txt)"
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release delete "$tag" --yes --cleanup-tag
           fi
-          gh release create "$tag" "$apk" out/SHA256SUMS.txt --title 'GreenSoil JARVIS 1.0.0 (DEBUG)' --notes "$notes" --prerelease --target "$GITHUB_SHA"
+          gh release create "$tag" "$apk" out/SHA256SUMS.txt --title 'GreenSoil JARVIS 2.0.0 (DEBUG)' --notes "$notes" --prerelease --target "$GITHUB_SHA"
 
   emulator-e2e:
     needs: android-build
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 55
     strategy:
       fail-fast: false
       matrix:
@@ -100,9 +101,9 @@ jobs:
         run: sudo chmod a+rw /dev/kvm
       - uses: actions/download-artifact@v4
         with:
-          name: GreenSoil-JARVIS-1.0.0-debug-apk
+          name: GreenSoil-JARVIS-2.0.0-debug-apk
           path: apk
-      - name: End-to-end UI test on Android ${{ matrix.api-level }}
+      - name: Phase 11 acceptance tests on Android ${{ matrix.api-level }}
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api-level }}
@@ -112,7 +113,7 @@ jobs:
           ram-size: 4096M
           emulator-boot-timeout: 600
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -cores 3
-          script: bash scripts/e2e.sh apk/GreenSoil-JARVIS-1.0.0-debug.apk e2e-api${{ matrix.api-level }}
+          script: bash scripts/acceptance.sh apk/GreenSoil-JARVIS-2.0.0-debug.apk e2e-api${{ matrix.api-level }}
       - name: Contact sheet of real emulator screenshots
         if: always()
         run: |

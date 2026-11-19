@@ -22,6 +22,8 @@ final class Speaker {
     private boolean ready;
     private String voiceName = "";
     private boolean preferFemale = true;
+    private String gender = "female";
+    private float pitch = 1f, rate = 1f;
     private Listener listener;
 
     Speaker(Context ctx, Runnable onReady) {
@@ -41,7 +43,14 @@ final class Speaker {
     boolean isReady() { return ready; }
     void setListener(Listener l) { listener = l; }
     void setVoiceName(String name) { voiceName = name == null ? "" : name; }
-    void setPreferFemale(boolean f) { preferFemale = f; }
+    void setPreferFemale(boolean f) { preferFemale = f; gender = f ? "female" : "any"; }
+    void setGender(String g) { gender = g == null ? "any" : g; preferFemale = "female".equals(gender); }
+    void setPitch(float p) { pitch = p; }
+    void setRate(float r) { rate = r; }
+    String engineName() { return ready ? String.valueOf(tts.getDefaultEngine()) : "none"; }
+    boolean isSpeaking() { return ready && tts.isSpeaking(); }
+    /** Installed voice whose name declares the requested gender, if any. */
+    String genderVoice(String langTag) { Voice v = pickVoice(Locale.forLanguageTag(langTag)); return v == null ? "" : v.getName(); }
 
     /** Installed voices for a language tag, e.g. "ta-IN" / "en-IN". */
     List<String> voicesFor(String langTag) {
@@ -66,7 +75,9 @@ final class Speaker {
         }
         Voice chosen = pickVoice(loc);
         if (chosen != null) tts.setVoice(chosen);
-        tts.setPitch(chosen == null && preferFemale ? 1.12f : 1.0f);
+        float genderPitch = chosen != null ? 1f : ("female".equals(gender) ? 1.12f : "male".equals(gender) ? .9f : 1f);
+        tts.setPitch(pitch * genderPitch);
+        tts.setSpeechRate(rate);
         return tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "jarvis-" + System.nanoTime()) == TextToSpeech.SUCCESS;
     }
 
@@ -76,8 +87,10 @@ final class Speaker {
         Voice femaleNamed = null;
         for (Voice v : vs) {
             if (!voiceName.isEmpty() && v.getName().equals(voiceName)) return v;
-            if (preferFemale && femaleNamed == null && v.getLocale().getLanguage().equals(loc.getLanguage())
-                    && v.getName().toLowerCase(Locale.ROOT).contains("female") && !v.isNetworkConnectionRequired()) femaleNamed = v;
+            String n = v.getName().toLowerCase(Locale.ROOT);
+            boolean wantF = "female".equals(gender), wantM = "male".equals(gender);
+            boolean match = (wantF && n.contains("female")) || (wantM && n.contains("male") && !n.contains("female"));
+            if (match && femaleNamed == null && v.getLocale().getLanguage().equals(loc.getLanguage()) && !v.isNetworkConnectionRequired()) femaleNamed = v;
         }
         return femaleNamed;
     }
