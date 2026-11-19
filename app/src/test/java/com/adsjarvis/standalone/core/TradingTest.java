@@ -15,7 +15,7 @@ public class TradingTest {
         return s;
     }
 
-    @Test public void validSetupIsSizedWithinRiskBudget() {
+    @Test public void validSetupIsSizedWithinRiskBudget() throws Exception {
         RiskEngine.Decision d = RiskEngine.evaluate(good(), rules);
         assertTrue(d.reasons.toString(), d.trade);
         assertEquals(1, d.lots);              // (10+0.5)*75 + fees ≈ 827 → 1 lot under ₹1,200
