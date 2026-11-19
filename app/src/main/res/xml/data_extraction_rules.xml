@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Conversation history, settings and the encrypted API key never leave the phone. -->
+<data-extraction-rules>
+    <cloud-backup><exclude domain="root" path="."/><exclude domain="sharedpref" path="."/></cloud-backup>
+    <device-transfer><exclude domain="root" path="."/><exclude domain="sharedpref" path="."/></device-transfer>
+</data-extraction-rules>

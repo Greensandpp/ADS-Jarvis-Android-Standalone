@@ -4,12 +4,14 @@ on:
   push:
     paths:
       - 'app/**'
+      - 'tests/**'
+      - 'scripts/**'
       - '*.gradle'
       - 'gradle.properties'
       - '.github/workflows/android-debug.yml'
 jobs:
   android-build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
@@ -28,28 +30,98 @@ jobs:
           if [ -z "$SDKMANAGER" ]; then echo "sdkmanager missing under $SDK_ROOT"; exit 1; fi
           yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null || true
           "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install 'platforms;android-35' 'build-tools;35.0.0'
-      - name: Compile and test independent command engine
+      - name: Legacy v0.4 command engine smoke test (preserved)
         run: |
           mkdir -p /tmp/ads-jarvis-tests
           javac -d /tmp/ads-jarvis-tests app/src/main/java/com/adsjarvis/standalone/CommandEngine.java tests/CommandEngineSmokeTest.java
           java -cp /tmp/ads-jarvis-tests com.adsjarvis.standalone.CommandEngineSmokeTest
-      - name: Build isolated debug APK
-        run: gradle --no-daemon :app:assembleDebug
+      - name: JVM unit tests (command engine, AI client over real HTTP)
+        run: gradle --no-daemon :app:testDebugUnitTest --console=plain
+      - name: Print unit test results
+        if: always()
+        run: |
+          for f in app/build/test-results/testDebugUnitTest/*.xml; do
+            grep -o '<testsuite [^>]*>' "$f" | sed -E 's/.*name="([^"]+)".*tests="([0-9]+)".*failures="([0-9]+)".*errors="([0-9]+)".*/\1 tests=\2 failures=\3 errors=\4/'
+          done
+      - name: Build debug APK
+        run: gradle --no-daemon :app:assembleDebug --console=plain
+      - name: Validate APK (identity, signature, contents, permissions, SHA256)
+        shell: bash
+        run: |
+          set -euo pipefail
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          mkdir -p out
+          cp "$APK" out/GreenSoil-JARVIS-1.0.0-debug.apk
+          A=out/GreenSoil-JARVIS-1.0.0-debug.apk
+          echo "== size"; stat -c '%s bytes' "$A"
+          echo "== sha256"; sha256sum "$A" | tee out/SHA256SUMS.txt
+          echo "== badging"; "$BT/aapt" dump badging "$A" | grep -E "^package:|sdkVersion|targetSdkVersion|application-label:|launchable-activity|uses-permission" | tee out/badging.txt
+          grep -q "package: name='com.adsjarvis.standalone.jarvis'" out/badging.txt
+          grep -q "versionName='1.0.0-debug'" out/badging.txt
+          echo "== signature"; "$BT/apksigner" verify --verbose --print-certs "$A" | grep -E "Verifies|Verified using v2|Signer #1 certificate (DN|SHA-256)" | tee out/signing.txt
+          echo "== zip contents"; unzip -l "$A" | tee out/contents.txt
+          grep -q "res/mipmap-anydpi-v26/ic_launcher.xml\|res/.*\.xml" out/contents.txt
+          echo "== classes in dex"; for d in $(unzip -Z1 "$A" | grep '\.dex$'); do unzip -p "$A" "$d" > /tmp/$d; "$BT/dexdump" /tmp/$d | grep "Class descriptor" | grep adsjarvis; done | tee out/classes.txt
+          for c in MainActivity HudView CommandEngine AiClient KeyVault Speaker DeviceActions; do grep -q "standalone/$c;" out/classes.txt || { echo "::error::missing class $c"; exit 1; }; done
+          echo "== merged manifest permissions"; "$BT/aapt" dump permissions "$A" | tee out/permissions.txt
+          if grep -E "QUERY_ALL_PACKAGES|SYSTEM_ALERT_WINDOW|READ_CONTACTS|READ_SMS|SEND_SMS|CALL_PHONE|BIND_ACCESSIBILITY|REQUEST_INSTALL|REQUEST_DELETE" out/permissions.txt; then echo "::error::unexpected sensitive permission"; exit 1; fi
+          echo "commit=$GITHUB_SHA run=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > out/PROVENANCE.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: ads-jarvis-standalone-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: GreenSoil-JARVIS-1.0.0-debug-apk
+          path: out/
           if-no-files-found: error
-          retention-days: 7
-      - name: Publish standalone debug APK as GitHub prerelease
-        if: github.ref == 'refs/heads/main'
+          retention-days: 14
+      - name: Publish debug APK as GitHub prerelease
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/jarvis-real-app'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag='v0.4-hud-debug'
-          apk='app/build/outputs/apk/debug/app-debug.apk'
+          tag='v1.0.0-jarvis-debug'
+          apk='out/GreenSoil-JARVIS-1.0.0-debug.apk'
+          notes="DEBUG test build from ${GITHUB_SHA}. Package com.adsjarvis.standalone.jarvis installs beside v0.4. AI requires your own key (Settings via long-press). SHA256: $(cut -d' ' -f1 out/SHA256SUMS.txt)"
           if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" "$apk#ADS-Jarvis-Android-v0.4-debug.apk" --clobber
-          else
-            gh release create "$tag" "$apk#ADS-Jarvis-Android-v0.4-debug.apk" --title 'ADS Jarvis Android v0.4 (DEBUG)' --notes 'Standalone prototype only. Local voice and commands; cloud AI not connected. Test APK; not a production release.' --prerelease --target "$GITHUB_SHA"
+            gh release delete "$tag" --yes --cleanup-tag
           fi
+          gh release create "$tag" "$apk" out/SHA256SUMS.txt --title 'GreenSoil JARVIS 1.0.0 (DEBUG)' --notes "$notes" --prerelease --target "$GITHUB_SHA"
+
+  emulator-e2e:
+    needs: android-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [35, 36]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable KVM
+        run: sudo chmod a+rw /dev/kvm
+      - uses: actions/download-artifact@v4
+        with:
+          name: GreenSoil-JARVIS-1.0.0-debug-apk
+          path: apk
+      - name: End-to-end UI test on Android ${{ matrix.api-level }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          ram-size: 4096M
+          emulator-boot-timeout: 600
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -cores 3
+          script: bash scripts/e2e.sh apk/GreenSoil-JARVIS-1.0.0-debug.apk e2e-api${{ matrix.api-level }}
+      - name: Contact sheet of real emulator screenshots
+        if: always()
+        run: |
+          python3 -c "import PIL" 2>/dev/null || python3 -m pip install --quiet --user --break-system-packages pillow || sudo apt-get install -y -qq python3-pil
+          cat e2e-api${{ matrix.api-level }}/results.txt || true
+          python3 scripts/contact_sheet.py e2e-api${{ matrix.api-level }} || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-evidence-api${{ matrix.api-level }}
+          path: e2e-api${{ matrix.api-level }}/
+          retention-days: 14

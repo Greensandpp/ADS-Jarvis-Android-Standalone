@@ -1,7 +1,35 @@
 plugins { id 'com.android.application' }
+
 android {
     namespace 'com.adsjarvis.standalone'
     compileSdk 35
-    defaultConfig { applicationId 'com.adsjarvis.standalone'; minSdk 26; targetSdk 35; versionCode 3; versionName '0.3.0' }
-    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+
+    defaultConfig {
+        applicationId 'com.adsjarvis.standalone'
+        minSdk 26
+        targetSdk 35
+        versionCode 10
+        versionName '1.0.0'
+    }
+
+    buildTypes {
+        debug {
+            // Installs BESIDE the existing v0.4 app (com.adsjarvis.standalone); never overwrites it.
+            applicationIdSuffix '.jarvis'
+            versionNameSuffix '-debug'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    testOptions { unitTests.returnDefaultValues = false }
+}
+
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
+    // Real org.json for JVM unit tests (Android provides it at runtime).
+    testImplementation 'org.json:json:20240303'
 }
