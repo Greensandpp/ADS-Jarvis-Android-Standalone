@@ -1,8 +1,8 @@
 # GreenSoil JARVIS 2.0 — Feature matrix
 
-Evidence sources: JVM unit tests (44 in CI run 44583046038, run on the Android unit-test
+Evidence sources: JVM unit tests (46 in CI run 44586189194, v2.1.0, run on the Android unit-test
 classpath), and the Phase 11 acceptance script (`scripts/acceptance.sh`) run on
-Android 15 (API 35) and Android 16 (API 36) emulators in GitHub Actions: 36 PASS · 0 FAIL · 7 UNVERIFIED on each.
+Android 15 (API 35) and Android 16 (API 36) emulators in GitHub Actions: 42 PASS · 0 FAIL · 7 UNVERIFIED on each (v2.1.0). Tests marked TEST DOUBLE use a local mock of the Gemini protocol and do not count as live Gemini verification.
 Nothing here was verified on the owner's iQOO 13, and no real Gemini key was
 available, so cloud-AI answers are **UNVERIFIED**.
 
@@ -21,12 +21,13 @@ available, so cloud-AI answers are **UNVERIFIED**.
 | AI | DNS / TLS / connect / timeout / 400 / 401 / 403 / 404 / 429 / 5xx distinguished | WORKING | BrainTest (unit) + live emulator: DNS FAIL when offline; real Google 400 API_KEY_INVALID → key error |
 | AI | Retry + exponential backoff, cancel, timeout | WORKING | BrainTest.retriesWithBackoff…, cancelStopsTheRequest, timeoutIs… |
 | AI | ONLINE only after verified request | WORKING | status shows "AI NOT CONNECTED"/"NOT VERIFIED" in acceptance T15b/T16 |
-| AI | Never stuck in THINKING | WORKING | AssistantState deadline watchdog + unit test |
+| AI | Never stuck in THINKING; Stop cancels | WORKING | on device: unreachable endpoint → TIMEOUT error after 63–69 s, state READY (T21); Stop → 'Request cancelled' (T22) |
+| AI | Secure in-app key entry (masked, Keystore) | WORKING | on device T23 (password field); key never in source/logs/backups |
 | AI | Tool catalog, plan/execute/verify loop, approvals | WORKING (mock) | BrainTest red/disabled/unknown/max-steps tests |
 | AI | Real Gemini answers, chart vision, AI planning | UNVERIFIED | no Gemini key provided (request declined) |
 | Offline | Time/date, alarms, reminders, apps, notes, journal audit | WORKING | acceptance T02, T14a–d, T12 |
 | Memory | Approved writes, duplicates, corrections + history, ranking, RAG, deletion | WORKING | MemoryTest; acceptance T05, T06, T20 |
-| Memory | Semantic (embedding) retrieval | PARTIAL | ranking blends embeddings (unit-tested); embeddings are not yet computed on device |
+| Memory | Semantic (embedding) retrieval | WORKING (test double) / UNVERIFIED (live) | Gemini embedContent wired off-UI-thread; MemoryTest embedding tests use a fake embedder |
 | Memory | Encrypted export/import with integrity check | WORKING (unit) / UNVERIFIED (device UI) | MemoryTest.encryptedBackupRoundTripAndTamperDetection |
 | Learning | Feedback/corrections retrieved later; supervised EvalSuite | WORKING (unit); eval run needs AI | MemoryTest.evalSuiteScoresAnswers |
 | Trading | Risk gate (09:30, 5m close, ≥70%, ₹1,200, ₹3,000/day, single position, stale quote, SL size) | WORKING | TradingTest (10 independent blocks) |
@@ -51,7 +52,6 @@ available, so cloud-AI answers are **UNVERIFIED**.
 
 ## Backlog (blocked or not yet built)
 1. Live Gemini verification — needs the owner's key (enter in ⚙ → AI Brain, run the test).
-2. Device embeddings for semantic memory (`embedContent` is implemented in GeminiClient; wire into commit/query).
 3. Live market data / OI / bid-ask — needs a broker or data-vendor API and credentials.
 4. Telegram reporting — needs bot token and owner approval.
 5. Windows companion agent with pairing, file transfer and remote launch.
