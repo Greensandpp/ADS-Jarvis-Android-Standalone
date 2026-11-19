@@ -60,7 +60,7 @@ void main() {
     float fk = float(k);
     float centre = fract(t * (0.12 + fk * 0.05) + fk * 0.33) * TAU - PI;
     float da = abs(mod(a - centre + PI, TAU) - PI);
-    float path = 0.82 + 0.05 * fk + 0.04 * (fbm(vec2(a * 7.0 + fk, t * 5.0)) - 0.5) * 2.0;
+    float path = 0.82 + 0.05 * fk + 0.04 * (fbm3(vec2(a * 7.0 + fk, t * 5.0)) - 0.5) * 2.0;
     col += mix(cyan, vec3(1.0), 0.5) * smoothstep(1.2, 0.0, da) * 0.003 / (abs(r - path) + 0.002);
   }
   // Rising geometric particles

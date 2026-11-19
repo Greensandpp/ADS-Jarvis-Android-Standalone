@@ -13,7 +13,7 @@ void main() {
   for (int i = 0; i < 9; i++) {
     float fi = float(i);
     float base = fi / 9.0 * TAU + 0.6 * sin(uTime * (0.3 + fi * 0.07) + fi * 2.0);
-    float wob = (fbm(vec2(r * 5.0 - uTime * 2.2, fi * 7.3)) - 0.5) * 1.1 * r;
+    float wob = (fbm3(vec2(r * 5.0 - uTime * 2.2, fi * 7.3)) - 0.5) * 1.1 * r;
     float da = abs(mod(a - base - wob + PI, TAU) - PI) * r;
     float len = 0.62 + 0.25 * sin(uTime * 0.9 + fi * 1.7);
     float fade = smoothstep(len, 0.05, r);
@@ -21,13 +21,13 @@ void main() {
     col += c * fade * 0.006 / (da + 0.003) * act;
     col += c * fade * exp(-da * 18.0) * 0.12 * act;
     // branch
-    float bwob = (fbm(vec2(r * 9.0 + uTime * 3.0, fi * 3.1 + 11.0)) - 0.5) * 1.6 * r;
+    float bwob = (noise(vec2(r * 9.0 + uTime * 3.0, fi * 3.1 + 11.0)) - 0.5) * 1.6 * r;
     float db = abs(mod(a - base - wob - 0.35 * smoothstep(0.25, 0.6, r) + bwob * 0.4 + PI, TAU) - PI) * r;
     col += c * smoothstep(len * 0.9, 0.3, r) * step(0.25, r) * 0.003 / (db + 0.0025);
   }
   // Neural connection web (cells)
   vec2 g = p * 7.0 + vec2(uTime * 0.2, 0.0);
-  float web = abs(fbm(g) - 0.5);
+  float web = abs(fbm3(g) - 0.5);
   col += mix(vio, cyan, 0.5) * smoothstep(0.035, 0.0, web) * smoothstep(0.85, 0.2, r) * 0.6;
   // Particle dispersion
   for (int k = 0; k < 36; k++) {

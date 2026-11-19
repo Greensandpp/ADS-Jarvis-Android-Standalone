@@ -37,7 +37,7 @@ void main() {
     float centre = fract(uTime * (0.05 + fk * 0.013) + fk * 0.27) * TAU - PI;
     float da = abs(mod(a - centre + PI, TAU) - PI);
     float window = smoothstep(0.55, 0.0, da);
-    float path = 0.35 + 0.045 * (fbm(vec2(a * 9.0 + fk * 3.1, uTime * 4.0 + fk)) - 0.5) * 2.0;
+    float path = 0.35 + 0.045 * (fbm3(vec2(a * 9.0 + fk * 3.1, uTime * 4.0 + fk)) - 0.5) * 2.0;
     col += mix(cyan, vec3(1.0), 0.6) * window * 0.0035 / (abs(r - path) + 0.002) * act;
   }
   // Energy pulses expanding outward

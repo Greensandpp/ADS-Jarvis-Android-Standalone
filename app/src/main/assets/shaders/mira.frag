@@ -20,7 +20,7 @@ float human(vec2 p, float t) {
 void main() {
   vec2 p = uvc() * 1.05;
   float t = uTime;
-  vec2 dp = p + 0.015 * vec2(fbm(p * 4.0 + t), fbm(p * 4.0 - t)) ;  // plasma distortion
+  vec2 dp = p + 0.015 * vec2(fbm3(p * 4.0 + t), fbm3(p * 4.0 - t));  // plasma distortion
   float orb = length(dp - vec2(0.0, 0.1)) - (0.24 + 0.02 * sin(t * 2.0) + 0.05 * uLevel);
   float m = smoothstep(0.0, 1.0, uMorph);
   float d = mix(orb, human(dp, t), m);

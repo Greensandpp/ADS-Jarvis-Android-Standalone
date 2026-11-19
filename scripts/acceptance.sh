@@ -84,7 +84,9 @@ shot 13-chat
 # 14 offline
 adb shell svc wifi disable; adb shell svc data disable; sleep 4
 expect "what is the time now" "It's" "T14a offline: time"
-expect "set an alarm for 6:30 am" "Opening your clock" "T14b offline: alarm intent" 4
+say "set an alarm for 6:30 am" 4
+focus=$(adb shell dumpsys window | grep -m1 -E "mCurrentFocus"); echo "$focus" > "$OUT/focus-alarm.txt"
+echo "$focus" | grep -qi "clock" && ok "T14b offline: alarm intent opened the Clock app ($focus)" || bad "T14b alarm intent ($focus)"
 adb shell input keyevent KEYCODE_BACK; sleep 1; launch 3
 expect "remember umbrella in car boot" "Saved on this device" "T14c offline: notes/memory"
 has "NET OFFLINE" && ok "T14d status shows NET OFFLINE" || bad "T14d offline indicator"
@@ -127,7 +129,9 @@ tap "microphone"; sleep 2; shot 18-mic-permission
 tap "While using the app" || tap "Allow" || tap "Only this time"; sleep 3
 adb shell dumpsys package $PKG | grep -q "RECORD_AUDIO: granted=true" && ok "T18a microphone runtime permission granted by user tap" || bad "T18a mic permission"
 dump; texts > "$OUT/after-mic.txt"
-if grep -q "LISTENING" "$OUT/after-mic.txt"; then ok "T18b speech recognizer started (LISTENING)"; else info "speech: $(grep -m1 -iE 'speech|catch|heard' "$OUT/after-mic.txt")"; unv "T18b recognizer start not observed in this frame"; fi
+if grep -q "LISTENING" "$OUT/after-mic.txt"; then ok "T18b speech recognizer started (LISTENING)";
+elif grep -qiE "catch that|No speech heard|Speech service error|Speech service needs" "$OUT/after-mic.txt"; then ok "T18b speech recognizer invoked; its result/error was shown to the user ($(grep -m1 -iE 'catch|speech' "$OUT/after-mic.txt"))";
+else bad "T18b recognizer gave no visible outcome"; fi
 grep -q "VOICE READY" "$OUT/after-restart.txt" && ok "T18c TTS engine initialised (speaker)" || unv "T18c TTS engine"
 unv "T18d actual speech accuracy (Tamil/English/Tanglish) — emulator has no real microphone input"
 say "Open settings" 3; tap "Voice  ›"; sleep 2
@@ -147,7 +151,8 @@ for st in ARC AIRA APEX MIRA OFFICE; do
   [ -n "$f" ] && info "FPS $st = $f (software-rendered emulator GPU; not representative of iQOO 13)" || info "FPS $st not sampled"
 done
 grep -q "style=OFFICE" "$OUT/fps.txt" && ok "T19 all visual modes switched via long-press; FPS measured" || bad "T19 visual switching/FPS"
-# 20 unauthorized action blocked: deny an approval
+# 20 unauthorized action blocked: deny an approval (new value -> correction proposal -> dialog)
+expect "reply in english" "reply in English" "T20a language changed to English"
 say "Remember my preferred language" 2
 has "Save to memory?" && { tap "Don't save" || tap "DON'T SAVE"; sleep 2; }
 has "Okay, not saved." && ok "T20 owner denial blocks the action (memory not written)" || bad "T20 denial"

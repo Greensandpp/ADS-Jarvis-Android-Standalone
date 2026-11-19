@@ -172,6 +172,21 @@ public class BrainTest {
         catch (GeminiClient.GeminiException e) { assertEquals(GeminiClient.Kind.NO_KEY, e.kind); }
     }
 
+    /** Exact error body Google returned to the Android 15/16 emulators for an invalid key (CI run 44580226200). */
+    @Test public void realGoogleInvalidKeyResponseIsAuthNotBadRequest() {
+        json(400, "{\"error\":{\"code\":400,\"message\":\"API key not valid. Please pass a valid API key.\",\"status\":\"INVALID_ARGUMENT\","
+            + "\"details\":[{\"@type\":\"type.googleapis.com/google.rpc.ErrorInfo\",\"reason\":\"API_KEY_INVALID\",\"domain\":\"googleapis.com\"}]}}");
+        try { client("bad").generate(Arrays.asList("m"), new JSONObject(), null); fail(); }
+        catch (GeminiClient.GeminiException e) {
+            assertEquals(GeminiClient.Kind.AUTH, e.kind);
+            assertEquals(400, e.httpStatus);
+            assertTrue(e.userMessage().contains("rejected the API key"));
+        }
+        json(400, "{\"error\":{\"message\":\"Invalid JSON payload received.\"}}");
+        try { client("k").generate(Arrays.asList("m"), new JSONObject(), null); fail(); }
+        catch (GeminiClient.GeminiException e) { assertEquals(GeminiClient.Kind.BAD_REQUEST, e.kind); }
+    }
+
     @Test public void timeoutIsReportedAsTimeoutNotModelError() {
         GeminiClient c = new GeminiClient(server.url("/v1beta").toString(), "k", 300, 1, sleeps::add);
         for (int i = 0; i < 2; i++) server.enqueue(new MockResponse().setBody("{}").setHeadersDelay(1500, TimeUnit.MILLISECONDS));

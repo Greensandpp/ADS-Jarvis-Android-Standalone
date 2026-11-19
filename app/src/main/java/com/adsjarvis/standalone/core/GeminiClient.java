@@ -226,6 +226,9 @@ public final class GeminiClient {
             String text = read(code >= 400 ? c.getErrorStream() : c.getInputStream());
             if (code >= 400) {
                 String msg = redact(providerMessage(text));
+                // Google returns HTTP 400 INVALID_ARGUMENT (reason API_KEY_INVALID) for a bad key: that is a key problem.
+                if (code == 400 && (text.contains("API_KEY_INVALID") || msg.toLowerCase(java.util.Locale.ROOT).contains("api key not valid")))
+                    throw new GeminiException(Kind.AUTH, code, msg);
                 switch (code) {
                     case 400: throw new GeminiException(Kind.BAD_REQUEST, code, msg);
                     case 401: case 403: throw new GeminiException(Kind.AUTH, code, msg);

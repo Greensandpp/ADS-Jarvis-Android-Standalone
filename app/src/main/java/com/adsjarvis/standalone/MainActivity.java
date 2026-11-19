@@ -473,7 +473,7 @@ public final class MainActivity extends Activity implements Jarvis.Ui {
         if (gl != null) gl.setStateCode(code);
         if (canvasHud != null) canvasHud.setState(code == 1 ? HudView.State.LISTENING : code == 2 ? HudView.State.THINKING
             : code == 3 ? HudView.State.SPEAKING : code == 4 ? HudView.State.ERROR : HudView.State.IDLE);
-        stopBtn.setVisibility(jarvis.busy() || (speaker != null && speaker.isSpeaking()) ? View.VISIBLE : View.GONE);
+        stopBtn.setVisibility(jarvis.busy() || s == AssistantState.S.SPEAKING || s == AssistantState.S.THINKING ? View.VISIBLE : View.GONE);
     }
 
     private String langLabel() {
@@ -563,6 +563,9 @@ public final class MainActivity extends Activity implements Jarvis.Ui {
         String q = input.getText().toString().trim();
         if (q.isEmpty() && pendingImage == null) return;
         input.setText("");
+        android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+        if (imm != null) imm.hideSoftInputFromWindow(input.getWindowToken(), 0);
+        input.clearFocus();
         handle(q.isEmpty() ? "Analyse this image." : q);
     }
 
@@ -590,7 +593,10 @@ public final class MainActivity extends Activity implements Jarvis.Ui {
             }
             if (r.action == CommandEngine.Action.CLEAR_MEMORY) prefs.edit().remove("memory").apply();
             String answer = actions.run(r);
-            if (r.action == CommandEngine.Action.NONE && r.response.startsWith("I remember")) answer = r.response + recentMemories();
+            if (r.action == CommandEngine.Action.NONE && (r.response.startsWith("I remember") || r.response.startsWith("No memory saved"))) {
+                String mem = recentMemories();
+                answer = mem.isEmpty() ? r.response : (r.response.startsWith("I remember") ? r.response : "Here's what I remember:") + mem;
+            }
             reply(answer, rl);
             return;
         }
@@ -619,7 +625,7 @@ public final class MainActivity extends Activity implements Jarvis.Ui {
         List<Memory> all = jarvis.memory.repo().all();
         if (all.isEmpty()) return "";
         StringBuilder sb = new StringBuilder("\nLong-term memories:");
-        for (int i = 0; i < Math.min(5, all.size()); i++) sb.append("\n• ").append(all.get(i).text);
+        for (int i = 0; i < Math.min(8, all.size()); i++) sb.append("\n• ").append(all.get(i).text);
         return sb.toString();
     }
 
