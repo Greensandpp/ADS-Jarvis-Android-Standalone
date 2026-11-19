@@ -71,6 +71,14 @@ public final class Jarvis implements AndroidTools.Host {
         vault = new KeyVault(prefs);
         memory = new MemoryEngine(JarvisDb.get(c).memories);
         memory.setEnabled(prefs.getBoolean(Store.MEM_ON, true));
+        // Semantic memory: Gemini embeddings when a model was discovered and the phone is online.
+        java.util.concurrent.ExecutorService embedPool = Executors.newSingleThreadExecutor();
+        memory.setEmbedder(text -> {
+            GeminiClient g = gemini();
+            String model = prefs.getString(Store.EMBED_MODEL, "");
+            if (g == null || model.isEmpty() || !online()) return null;
+            return g.embed(model, text, null);
+        }, embedPool);
         tools = AndroidTools.build(c, memory, this);
         for (String d : prefs.getString("tools_disabled", "").split(",")) if (!d.isEmpty() && tools.get(d) != null) tools.setEnabled(d, false);
         state.to(online() ? AssistantState.S.READY : AssistantState.S.OFFLINE, "start");
@@ -194,7 +202,7 @@ public final class Jarvis implements AndroidTools.Host {
                 r.online = online();
                 r.approveYellow = prefs.getBoolean(Store.APPROVE_YELLOW, true);
                 r.deviceTime = DateFormat.getDateTimeInstance(DateFormat.FULL, DateFormat.SHORT).format(new Date());
-                r.memories = memory.contextFor(text, null, 6);
+                r.memories = memory.contextFor(text, memory.embedQuery(text), 6);
                 Brain brain = new Brain(g, tools, models())
                     .approver(this::blockingApprove)
                     .events(new Brain.Events() {
@@ -265,7 +273,7 @@ public final class Jarvis implements AndroidTools.Host {
                     }
                     prefs.edit().putString(Store.DISCOVERED, a.toString()).putString(Store.EMBED_MODEL, embed).apply();
                 }
-                if (rep.online) recordOk(rep.workingModel);
+                if (rep.online) { recordOk(rep.workingModel); memory.backfillEmbeddings(200); }
                 else prefs.edit().putBoolean(Store.VERIFIED, false).apply();
             }
             Diagnostics.Report fr = rep;

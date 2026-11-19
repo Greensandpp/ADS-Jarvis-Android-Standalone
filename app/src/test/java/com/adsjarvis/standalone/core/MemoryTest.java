@@ -87,6 +87,37 @@ public class MemoryTest {
         try { Backup.decrypt("{}", "x".toCharArray()); fail(); } catch (Backup.BackupException e) { }
     }
 
+    /** TEST DOUBLE: deterministic fake embedder (no Gemini call). Proves wiring, not live embedding quality. */
+    @Test public void embeddingsAreStoredOnCommitAndUsedForQueries() {
+        MemoryEngine.Embedder fake = text -> text.toLowerCase().contains("coffee") || text.toLowerCase().contains("beverage")
+            ? new float[]{1, 0} : new float[]{0, 1};
+        eng.setEmbedder(fake, Runnable::run);
+        Memory coffee = add(Memory.Category.KNOWLEDGE, "", "Owner drinks filter coffee every morning");
+        add(Memory.Category.KNOWLEDGE, "", "Owner's gym is near Anna Nagar");
+        assertNotNull(coffee.embedding);
+        float[] q = eng.embedQuery("favourite morning beverage");
+        assertEquals(coffee.id, eng.search("favourite morning beverage", q, 1).get(0).memory.id);
+        // Every memory already has a vector, so backfill has nothing to do.
+        assertEquals(0, eng.backfillEmbeddings(10));
+        // A memory saved before an embedder existed gets backfilled.
+        eng.setEmbedder(null, Runnable::run);
+        Memory late = add(Memory.Category.KNOWLEDGE, "", "Bike service due in March");
+        assertNull(late.embedding);
+        eng.setEmbedder(fake, Runnable::run);
+        assertEquals(1, eng.backfillEmbeddings(10));
+        assertNotNull(eng.repo().get(late.id).embedding);
+    }
+
+    /** TEST DOUBLE: embedder that fails (e.g. offline) — memory must still be saved. */
+    @Test public void embeddingFailureNeverLosesMemory() {
+        eng.setEmbedder(text -> { throw new java.io.IOException("offline"); }, Runnable::run);
+        Memory m = add(Memory.Category.KNOWLEDGE, "", "Keys are in the drawer");
+        assertNull(m.embedding);
+        assertEquals(1, eng.repo().all().size());
+        assertNull(eng.embedQuery("keys"));
+        assertEquals("Keys are in the drawer", eng.search("where are my keys", null, 1).get(0).memory.text);
+    }
+
     @Test public void evalSuiteScoresAnswers() throws Exception {
         List<EvalSuite.Case> cases = EvalSuite.parse(EvalSuite.DEFAULT);
         EvalSuite.Result good = EvalSuite.run(cases, p -> p.contains("55%") ? "NO TRADE: confidence below 70%."

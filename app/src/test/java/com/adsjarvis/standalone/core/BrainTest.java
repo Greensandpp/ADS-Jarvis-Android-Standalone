@@ -19,7 +19,12 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-/** Drives the real Brain + GeminiClient against a server speaking the Gemini REST protocol. */
+/**
+ * TEST DOUBLE: every test here talks to a LOCAL MockWebServer that imitates the Gemini REST
+ * protocol. It proves JARVIS's request/response handling, tool loop, retries and error
+ * classification — NOT that live Gemini works. Live Gemini remains UNVERIFIED until the owner
+ * enters a key on the phone (Settings → AI Brain).
+ */
 public class BrainTest {
     private MockWebServer server;
     private final List<Long> sleeps = new ArrayList<>();

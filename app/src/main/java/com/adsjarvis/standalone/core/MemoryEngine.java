@@ -34,9 +34,43 @@ public final class MemoryEngine {
 
     public interface Clock { long now(); }
 
+    /** Produces a semantic vector for text, or null when unavailable (offline / no model). */
+    public interface Embedder { float[] embed(String text) throws Exception; }
+
     private final MemoryRepo repo;
     private final Clock clock;
     private boolean enabled = true;
+    private Embedder embedder;
+    private java.util.concurrent.Executor embedExecutor = Runnable::run;
+
+    /** Embeddings are computed on {@code executor} (never block the UI thread). */
+    public void setEmbedder(Embedder e, java.util.concurrent.Executor executor) { embedder = e; embedExecutor = executor; }
+
+    /** Best-effort; failure leaves the memory saved without a vector (lexical ranking still works). */
+    public void embedLater(Memory m) {
+        Embedder e = embedder;
+        if (e == null || m == null) return;
+        embedExecutor.execute(() -> {
+            try {
+                float[] v = e.embed(m.text);
+                if (v != null && v.length > 0) { m.embedding = v; repo.update(m); }
+            } catch (Exception ignored) { }
+        });
+    }
+
+    /** Embeds the query for retrieval; null when no embedder or it fails. */
+    public float[] embedQuery(String q) {
+        Embedder e = embedder;
+        if (e == null) return null;
+        try { return e.embed(q); } catch (Exception ex) { return null; }
+    }
+
+    /** Adds vectors to up to {@code max} memories that do not have one yet. */
+    public int backfillEmbeddings(int max) {
+        int n = 0;
+        for (Memory m : repo.all()) if (m.embedding == null && n < max) { embedLater(m); n++; }
+        return n;
+    }
 
     public MemoryEngine(MemoryRepo repo) { this(repo, System::currentTimeMillis); }
     public MemoryEngine(MemoryRepo repo, Clock clock) { this.repo = repo; this.clock = clock; }
@@ -75,11 +109,14 @@ public final class MemoryEngine {
                 p.existing.text = p.memory.text;
                 p.existing.source = p.memory.source;
                 p.existing.updatedAt = now;
+                p.existing.embedding = null;
                 repo.update(p.existing);
+                embedLater(p.existing);
                 return p.existing;
             default:
                 p.memory.createdAt = now; p.memory.updatedAt = now;
                 repo.insert(p.memory);
+                embedLater(p.memory);
                 return p.memory;
         }
     }

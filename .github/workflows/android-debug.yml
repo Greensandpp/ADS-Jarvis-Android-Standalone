@@ -52,13 +52,13 @@ jobs:
           BT="$ANDROID_HOME/build-tools/35.0.0"
           APK=app/build/outputs/apk/debug/app-debug.apk
           mkdir -p out
-          cp "$APK" out/GreenSoil-JARVIS-2.0.0-debug.apk
-          A=out/GreenSoil-JARVIS-2.0.0-debug.apk
+          cp "$APK" out/GreenSoil-JARVIS-2.1.0-debug.apk
+          A=out/GreenSoil-JARVIS-2.1.0-debug.apk
           echo "== size"; stat -c '%s bytes' "$A"
           echo "== sha256"; sha256sum "$A" | tee out/SHA256SUMS.txt
           echo "== badging"; "$BT/aapt" dump badging "$A" | grep -E "^package:|sdkVersion|targetSdkVersion|application-label:|launchable-activity|uses-permission" | tee out/badging.txt
           grep -q "package: name='com.adsjarvis.standalone.jarvis'" out/badging.txt
-          grep -q "versionName='2.0.0-debug'" out/badging.txt
+          grep -q "versionName='2.1.0-debug'" out/badging.txt
           echo "== signature"; "$BT/apksigner" verify --verbose --print-certs "$A" | grep -E "Verifies|Verified using v2|Signer #1 certificate (DN|SHA-256)" | tee out/signing.txt
           echo "== zip contents"; unzip -l "$A" | tee out/contents.txt
           grep -q "res/mipmap-anydpi-v26/ic_launcher.xml" out/contents.txt
@@ -70,7 +70,7 @@ jobs:
           echo "commit=$GITHUB_SHA run=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > out/PROVENANCE.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: GreenSoil-JARVIS-2.0.0-debug-apk
+          name: GreenSoil-JARVIS-2.1.0-debug-apk
           path: out/
           if-no-files-found: error
           retention-days: 14
@@ -79,13 +79,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag='v2.0.0-jarvis-debug'
-          apk='out/GreenSoil-JARVIS-2.0.0-debug.apk'
+          tag='v2.1.0-jarvis-debug'
+          apk='out/GreenSoil-JARVIS-2.1.0-debug.apk'
           notes="DEBUG test build from ${GITHUB_SHA}. Package com.adsjarvis.standalone.jarvis (updates 1.0.0 test build only if signed with the same key; else uninstall the test build first). AI requires your own Gemini key: gear icon -> AI Brain. SHA256: $(cut -d' ' -f1 out/SHA256SUMS.txt)"
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release delete "$tag" --yes --cleanup-tag
           fi
-          gh release create "$tag" "$apk" out/SHA256SUMS.txt --title 'GreenSoil JARVIS 2.0.0 (DEBUG)' --notes "$notes" --prerelease --target "$GITHUB_SHA"
+          gh release create "$tag" "$apk" out/SHA256SUMS.txt --title 'GreenSoil JARVIS 2.1.0 (DEBUG)' --notes "$notes" --prerelease --target "$GITHUB_SHA"
 
   emulator-e2e:
     needs: android-build
@@ -101,7 +101,7 @@ jobs:
         run: sudo chmod a+rw /dev/kvm
       - uses: actions/download-artifact@v4
         with:
-          name: GreenSoil-JARVIS-2.0.0-debug-apk
+          name: GreenSoil-JARVIS-2.1.0-debug-apk
           path: apk
       - name: Phase 11 acceptance tests on Android ${{ matrix.api-level }}
         uses: reactivecircus/android-emulator-runner@v2
@@ -113,7 +113,7 @@ jobs:
           ram-size: 4096M
           emulator-boot-timeout: 600
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -cores 3
-          script: bash scripts/acceptance.sh apk/GreenSoil-JARVIS-2.0.0-debug.apk e2e-api${{ matrix.api-level }}
+          script: bash scripts/acceptance.sh apk/GreenSoil-JARVIS-2.1.0-debug.apk e2e-api${{ matrix.api-level }}
       - name: Contact sheet of real emulator screenshots
         if: always()
         run: |

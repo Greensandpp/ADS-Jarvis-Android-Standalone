@@ -17,6 +17,11 @@ if cmd == "texts":
         if t: print(t)
     sys.exit(0)
 needle = sys.argv[3]
+if cmd == "attr":  # attr <dump> <text-or-hint> <attribute>
+    for n in nodes:
+        if needle in ((n.get("text") or ""), (n.get("hint") or ""), (n.get("content-desc") or "")):
+            print(n.get(sys.argv[4], "")); sys.exit(0)
+    sys.exit(1)
 for n in nodes:
     t, d, h = n.get("text") or "", n.get("content-desc") or "", n.get("hint") or ""
     hit = (needle in (t, d, h)) if cmd == "center" else (needle in t or needle in d or needle in h)

@@ -14,7 +14,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-/** Exercises the real HttpURLConnection client against a local server (no internet, no real key). */
+/** TEST DOUBLE: local MockWebServer imitating Gemini/OpenAI APIs — not a live provider test. */
 public class AiClientTest {
     private MockWebServer server;
 

@@ -158,6 +158,45 @@ has "Save to memory?" && { tap "Don't save" || tap "DON'T SAVE"; sleep 2; }
 has "Okay, not saved." && ok "T20 owner denial blocks the action (memory not written)" || bad "T20 denial"
 info "RED-tier tool blocking without approval: unit test BrainTest.redToolIsBlockedWithoutApprovalAndModelIsTold"
 
+# 21-23 Failure recovery WITHOUT any secret: fake key + unreachable endpoint (no live Gemini involved)
+say "Open settings" 3; tap "AI Brain  ›"; sleep 2
+scroll_to "Paste API key (never shared, never in backups)"
+pw=$(python3 "$here/ui.py" attr "$OUT/ui.xml" "Paste API key (never shared, never in backups)" password)
+[ "$pw" = "true" ] && ok "T23 in-app API key field is password-masked (stored via Android Keystore)" || bad "T23 key field masking (password=$pw)"
+tap "Paste API key (never shared, never in backups)"; sleep 1
+adb shell input text "AIzaSyFakeKeyOnlyForTimeoutTest00000000000"; adb shell input keyevent KEYCODE_BACK; sleep 1
+tap_scroll "Save API key"; sleep 2
+tap_scroll "https://generativelanguage.googleapis.com/v1beta"; sleep 1
+adb shell input keyevent KEYCODE_MOVE_END
+adb shell input keyevent $(printf '67 %.0s' $(seq 1 70))
+adb shell input text "https://10.255.255.1/v1beta"; adb shell input keyevent KEYCODE_BACK; sleep 1
+tap_scroll "Save endpoint & model"; sleep 2
+adb shell input keyevent KEYCODE_BACK; sleep 1; adb shell input keyevent KEYCODE_BACK; sleep 2
+t0=$(date +%s)
+say "explain black holes simply" 3
+has "THINKING" && ok "T21a AI request entered THINKING" || info "THINKING not captured at send time"
+done21=""
+for i in $(seq 1 22); do
+  if has "Could not connect" || has "did not respond" || has "timed out"; then done21=1; break; fi
+  sleep 5
+done
+el=$(( $(date +%s) - t0 ))
+if [ -n "$done21" ]; then ok "T21 unreachable AI endpoint → clear connection/timeout error after ${el}s (no fake reply)"; else bad "T21 no error after ${el}s"; fi
+sleep 2; dump
+python3 "$here/ui.py" texts "$OUT/ui.xml" | grep -m1 -E "^(READY|ERROR|THINKING|OFFLINE|CANCELLED|RETRYING)" | sed 's/^/            state: /' | tee -a "$R"
+python3 "$here/ui.py" texts "$OUT/ui.xml" | grep -qE "^(THINKING|RETRYING)" && bad "T21b still stuck in THINKING" || ok "T21b not stuck in THINKING after failure"
+shot 21-timeout
+say "explain gravity simply" 1
+sleep 2
+if texts | grep -qE "^(THINKING|RETRYING)"; then
+  tap "stop"; sleep 5
+  if has "Request cancelled"; then ok "T22 Stop cancels an in-flight AI request"; else bad "T22 cancel"; texts | tail -4 | sed 's/^/            seen: /' | tee -a "$R"; fi
+else
+  unv "T22 request finished before Stop could be pressed (endpoint failed fast); cancel covered by unit test cancelStopsTheRequest"
+fi
+python3 "$here/ui.py" texts "$OUT/ui.xml" | grep -qE "^(THINKING|RETRYING)" && bad "T22b stuck after cancel" || ok "T22b state left THINKING after cancel"
+shot 22-cancel
+
 adb logcat -d > "$OUT/logcat.txt"
 if grep -E "FATAL EXCEPTION" -A3 "$OUT/logcat.txt" | grep -q "$PKG"; then bad "no crashes (FATAL found)"; grep -A20 "FATAL EXCEPTION" "$OUT/logcat.txt" | head -40 | tee -a "$R"; else ok "no FATAL exceptions"; fi
 adb shell dumpsys meminfo $PKG | grep -E "TOTAL PSS" | head -1 | sed 's/^/INFO        memory: /' | tee -a "$R"
