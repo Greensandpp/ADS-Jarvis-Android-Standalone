@@ -1,5 +1,7 @@
 # GreenSoil JARVIS 2.0 — Feature matrix
 
+> **Status: NOT COMPLETE.** This app does not yet contain the original JARVIS (Flutter, `Greensandpp/Jarvis`) features. See `docs/ORIGINAL_APP_COMPARISON.md`.
+
 Evidence sources: JVM unit tests (46 in CI run 44586189194, v2.1.0, run on the Android unit-test
 classpath), and the Phase 11 acceptance script (`scripts/acceptance.sh`) run on
 Android 15 (API 35) and Android 16 (API 36) emulators in GitHub Actions: 42 PASS · 0 FAIL · 7 UNVERIFIED on each (v2.1.0). Tests marked TEST DOUBLE use a local mock of the Gemini protocol and do not count as live Gemini verification.
