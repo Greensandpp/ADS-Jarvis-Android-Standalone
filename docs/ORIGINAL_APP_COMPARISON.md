@@ -2,6 +2,12 @@
 
 Status: **NOT COMPLETE.** The native app does not contain the original app's features.
 
+> **Update (2026-11-20):** the owner chose the original Flutter app as the primary JARVIS. Restoration now
+> happens in `Greensandpp/Jarvis`, branch `feature/jarvis-unified-20261120`, which keeps every original
+> feature/asset and adds this native app's brain, diagnostics, watchdog, memory, risk gate and journal
+> audit in Dart, as two builds (Standard and Full Control). Evidence: `docs/UNIFIED_STATUS.md` there.
+> This native app is no longer the primary build.
+
 ## 1. Where the original is
 
 | | Original JARVIS | Native ADS JARVIS v2.1.0 |
